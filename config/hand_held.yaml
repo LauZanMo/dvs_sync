@@ -1,0 +1,10 @@
+# InsProbe参数
+port: "/dev/ttyUSB0"
+baudrate: 115200
+timeout: 3000 # 单位：ms
+sync_rate: 1 # 单位：Hz
+
+# EVK4 HD参数
+camera_label: "evk4_hd"
+bias_file: ""
+pub_rate: 100.0 # 单位：Hz
