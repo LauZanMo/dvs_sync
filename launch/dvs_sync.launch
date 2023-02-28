@@ -3,6 +3,7 @@
 
     <node pkg="dvs_sync" type="node" name="dvs_sync_node" respawn="false" output="screen">
         <param name="config_file" value="$(find dvs_sync)/config/hand_held.yaml"/>
+        <remap from="/dvs_sync_node/events" to="/dvs/events" />
     </node>
 
 </launch>
