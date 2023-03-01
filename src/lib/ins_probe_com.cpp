@@ -43,7 +43,6 @@ void InsProbeCom::run() {
             // 解析
             std::string data = serial_.readline();
             parse(data);
-            ROS_INFO_STREAM(prefix_ << data);
         }
     }
     serial_.close();

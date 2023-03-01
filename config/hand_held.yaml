@@ -8,3 +8,4 @@ sync_rate: 1 # 单位：Hz
 camera_label: "evk4_hd"
 bias_file: "/home/ubuntu/Code/catkin_ws/src/dvs_sync/config/bias/evk4_hd.bias"
 pub_rate: 100.0 # 单位：Hz
+pub_t_offset: false

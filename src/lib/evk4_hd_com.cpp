@@ -15,6 +15,7 @@ Evk4HdCom::Evk4HdCom(const std::string &config_file, const InsProbeCom::Ptr &ins
     bias_file_        = config["bias_file"].as<std::string>();
     pub_dt_           = 1.0 / config["pub_rate"].as<double>();
     sync_thresh_ = 0.1 / config["sync_rate"].as<double>(); // 同步阈值设置为同步频率的十分之一
+    pub_t_offset_ = config["pub_t_offset"].as<bool>();
 
     events_pub_ = nh_.advertise<dvs_msgs::EventArray>("events", 1000);
 }
@@ -87,42 +88,51 @@ void Evk4HdCom::run() {
     });
 
     // 外部触发事件回调
-    camera_.ext_trigger().add_callback(
-        [this](const EventExtTrigger *begin, const EventExtTrigger *end) {
-            // 有新触发事件
-            if (begin < end) {
-                // 由于同步信号频率低(1hz)，因此每次处理只会有一个触发事件
-                // INS-Probe只在上升沿回传时间戳，因此只处理负极性的触发事件
-                auto back = end - 1;
-                if (back->p == 0) {
-                    stamps_.emplace_back(ros::Time::now().toSec(), back->t * 1e-6);
+    camera_.ext_trigger().add_callback([this](const EventExtTrigger *begin,
+                                              const EventExtTrigger *end) {
+        // 有新触发事件
+        if (begin < end) {
+            // 由于同步信号频率低(1hz)，因此每次处理只会有一个触发事件
+            // INS-Probe只在上升沿回传时间戳，因此只处理负极性的触发事件
+            auto back = end - 1;
+            if (back->p == 0) {
+                stamps_.emplace_back(ros::Time::now().toSec(), back->t * 1e-6);
 
-                    // 延迟初始化和计算同步偏移量
-                    if (stamps_.size() > 2)
-                        stamps_.pop_front();
-                    else if (stamps_.size() < 2)
-                        return;
+                // 延迟初始化和计算同步偏移量
+                if (stamps_.size() > 2)
+                    stamps_.pop_front();
+                else if (stamps_.size() < 2)
+                    return;
 
-                    if (!ins_probe_com_->stampAvailable())
-                        return;
+                if (!ins_probe_com_->stampAvailable())
+                    return;
 
-                    // 计算同步偏移量
-                    auto  ins_stamps    = ins_probe_com_->stamps();
-                    auto &trigger_stamp = stamps_.front();
-                    for (auto ins_stamp = ins_stamps.rbegin(); ins_stamp != ins_stamps.rend();
-                         ins_stamp++) {
-                        // 搜索本地时间最近的INS-Probe时间戳
-                        if (std::fabs(trigger_stamp.first - ins_stamp->first) < sync_thresh_) {
-                            time_offset_ = trigger_stamp.second - ins_stamp->second;
-                            break;
+                // 计算同步偏移量
+                auto  ins_stamps    = ins_probe_com_->stamps();
+                auto &trigger_stamp = stamps_.front();
+                for (auto ins_stamp = ins_stamps.rbegin(); ins_stamp != ins_stamps.rend();
+                     ins_stamp++) {
+                    // 搜索本地时间最近的INS-Probe时间戳
+                    if (std::fabs(trigger_stamp.first - ins_stamp->first) < sync_thresh_) {
+                        time_offset_ = trigger_stamp.second - ins_stamp->second;
+                        if (pub_t_offset_) {
+                            // clang-format off
+                            ROS_INFO_STREAM("Time offset: " << std::to_string(time_offset_));
+                            ROS_INFO_STREAM("Trigger ROS time: " << std::to_string(trigger_stamp.first));
+                            ROS_INFO_STREAM("INS ROS time: " << std::to_string(ins_stamp->first));
+                            ROS_INFO_STREAM("Trigger stamp: " << std::to_string(trigger_stamp.second));
+                            ROS_INFO_STREAM("INS stamp: " << std::to_string(ins_stamp->second));
+                            // clang-format on
                         }
+                        break;
                     }
-
-                    if (!is_offset_init_)
-                        is_offset_init_ = true;
                 }
+
+                if (!is_offset_init_)
+                    is_offset_init_ = true;
             }
-        });
+        }
+    });
 
     // 主循环
     ros::Rate loop_rate(5);

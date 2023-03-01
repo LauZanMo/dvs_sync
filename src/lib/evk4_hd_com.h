@@ -36,6 +36,7 @@ private:
     std::string bias_file_;
     double      pub_dt_;
     double      sync_thresh_;
+    bool        pub_t_offset_;
 
     ros::NodeHandle nh_;
     ros::Publisher  events_pub_;
