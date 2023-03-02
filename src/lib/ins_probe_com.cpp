@@ -2,7 +2,9 @@
 
 #include <absl/strings/numbers.h>
 #include <absl/strings/str_split.h>
+#include <boost/filesystem.hpp>
 #include <ros/ros.h>
+#include <thread>
 #include <vector>
 #include <yaml-cpp/yaml.h>
 
@@ -20,6 +22,13 @@ InsProbeCom::InsProbeCom(const std::string &config_file) {
     auto port     = config["port"].as<std::string>();
     auto baudrate = config["baudrate"].as<int>();
     auto timeout  = config["timeout"].as<uint32_t>();
+
+    while (!boost::filesystem::exists(port)) {
+        ROS_INFO_STREAM("Waiting for Ins-Probe...");
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        if (!ros::ok()) // 外部节点关闭时还未打开串口
+            return;
+    }
 
     // 打开串口
     try {
