@@ -32,6 +32,10 @@ target_link_libraries(${PROJECT_NAME}
     absl::str_format
 )
 
+# boost
+find_package(Boost REQUIRED COMPONENTS filesystem)
+target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
+
 # MetavisionSDK
 find_package(MetavisionSDK COMPONENTS driver REQUIRED)
 target_link_libraries(${PROJECT_NAME} MetavisionSDK::driver)
