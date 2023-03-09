@@ -1,11 +1,18 @@
 # InsProbe参数
-port: "/dev/insprobe"
-baudrate: 115200
-timeout: 3000 # 单位：ms
+data_serial:
+    port: "/dev/ttyUSB0"
+    baudrate: 115200
+    timeout: 1000 # 单位：ms
+
+sync_serial:
+    port: "/dev/ttyUSB1"
+    baudrate: 115200
+    timeout: 3000 # 单位：ms
+
 sync_rate: 1 # 单位：Hz
 
 # EVK4 HD参数
 camera_label: "evk4_hd"
 bias_file: "/home/ubuntu/Code/catkin_ws/src/dvs_sync/config/bias/evk4_hd.bias"
-pub_rate: 100.0 # 单位：Hz
+pub_rate: 20.0 # 单位：Hz
 pub_t_offset: false

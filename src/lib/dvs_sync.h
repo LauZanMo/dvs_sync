@@ -14,7 +14,7 @@ public:
 
 private:
     InsProbeCom::Ptr ins_probe_com_;
-    Evk4HdCom::Ptr   evk4_hd_com_;
+    Evk4HdCom::Ptr evk4_hd_com_;
 };
 
 } // namespace dvs_sync

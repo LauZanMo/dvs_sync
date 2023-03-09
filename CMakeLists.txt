@@ -43,13 +43,14 @@ target_link_libraries(${PROJECT_NAME} MetavisionSDK::driver)
 # ROS
 find_package(catkin REQUIRED COMPONENTS
     dvs_msgs
+    sensor_msgs
     roscpp
     serial
 )
 catkin_package(
     INCLUDE_DIRS src/lib
     LIBRARIES ${PROJECT_NAME}
-    CATKIN_DEPENDS dvs_msgs roscpp serial
+    CATKIN_DEPENDS dvs_msgs sensor_msgs roscpp serial
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${catkin_INCLUDE_DIRS})
