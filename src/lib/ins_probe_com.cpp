@@ -43,6 +43,7 @@ void InsProbeCom::run() {
         sync_serial_.close();
     });
 
+    constexpr double deg2rad = M_PI / 180.0;
     uint8_t data;
     double prev_t = 0;
     sensor_msgs::Imu imu_msg;
@@ -60,9 +61,9 @@ void InsProbeCom::run() {
                     // 封装成IMU信息发布
                     imu_msg.header.stamp.fromSec(imu_data_.week_second);
                     imu_msg.header.frame_id       = "insprobe";
-                    imu_msg.angular_velocity.x    = imu_data_.gyro_x * dt_inv;
-                    imu_msg.angular_velocity.y    = imu_data_.gyro_y * dt_inv;
-                    imu_msg.angular_velocity.z    = imu_data_.gyro_z * dt_inv;
+                    imu_msg.angular_velocity.x    = imu_data_.gyro_x * dt_inv * deg2rad;
+                    imu_msg.angular_velocity.y    = imu_data_.gyro_y * dt_inv * deg2rad;
+                    imu_msg.angular_velocity.z    = imu_data_.gyro_z * dt_inv * deg2rad;
                     imu_msg.linear_acceleration.x = imu_data_.acc_x * dt_inv;
                     imu_msg.linear_acceleration.y = imu_data_.acc_y * dt_inv;
                     imu_msg.linear_acceleration.z = imu_data_.acc_z * dt_inv;
