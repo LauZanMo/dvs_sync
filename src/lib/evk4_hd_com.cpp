@@ -7,15 +7,20 @@
 
 namespace dvs_sync {
 
+bool Equal(const EventCD &a, const EventCD &b) {
+    return a.t == b.t && a.p == b.p;
+}
+
 Evk4HdCom::Evk4HdCom(const std::string &config_file, const InsProbeCom::Ptr &ins_probe_com)
-    : ins_probe_com_(ins_probe_com), nh_("~") {
+    : ins_probe_com_(ins_probe_com)
+    , nh_("~") {
     // 加载配置文件
     YAML::Node config = YAML::LoadFile(config_file);
     camera_label_     = config["camera_label"].as<std::string>();
     bias_file_        = config["bias_file"].as<std::string>();
     pub_dt_           = 1.0 / config["pub_rate"].as<double>();
-    sync_thresh_ = 0.1 / config["sync_rate"].as<double>(); // 同步阈值设置为同步频率的十分之一
-    pub_t_offset_ = config["pub_t_offset"].as<bool>();
+    sync_thresh_      = 0.1 / config["sync_rate"].as<double>(); // 同步阈值设置为同步频率的十分之一
+    pub_t_offset_     = config["pub_t_offset"].as<bool>();
 
     events_pub_ = nh_.advertise<dvs_msgs::EventArray>("events", 1000);
 }
@@ -29,18 +34,17 @@ void Evk4HdCom::run() {
             return;
     }
 
-    camera_.add_runtime_error_callback([](const Metavision::CameraException &e) {
-        ROS_WARN_STREAM(e.what());
-    });
+    camera_.add_runtime_error_callback([](const Metavision::CameraException &e) { ROS_WARN_STREAM(e.what()); });
 
     // 使能外部触发
     camera_.get_device().get_facility<Metavision::I_TriggerIn>()->enable(0);
 
     // 打印相机信息
-    Metavision::CameraConfiguration config   = camera_.get_camera_configuration();
-    auto                           &geometry = camera_.geometry();
+    Metavision::CameraConfiguration config = camera_.get_camera_configuration();
+    auto &geometry                         = camera_.geometry();
     ROS_INFO_STREAM(prefix_ << "Camera geometry " << geometry.width() << "x" << geometry.height());
     ROS_INFO_STREAM(prefix_ << "Camera serial number: " << config.serial_number);
+    latest_sae_.resize(geometry.width() * geometry.height());
 
     // 相机采集
     camera_.start();
@@ -71,13 +75,21 @@ void Evk4HdCom::run() {
                 msg.width  = camera_.geometry().width();
                 msg.height = camera_.geometry().height();
 
-                msg.events.resize(event_buffer_.size());
+                msg.events.reserve(event_buffer_.size());
 
                 for (size_t i = 0; i < event_buffer_.size(); i++) {
-                    msg.events[i].x = static_cast<uint16_t>(event_buffer_[i].x);
-                    msg.events[i].y = static_cast<uint16_t>(event_buffer_[i].y);
-                    msg.events[i].ts.fromSec(event_buffer_[i].t * 1e-6 - time_offset);
-                    msg.events[i].polarity = static_cast<uint8_t>(event_buffer_[i].p);
+                    auto &pixel = latest_sae_[event_buffer_[i].x + event_buffer_[i].y * msg.width];
+                    if (Equal(pixel, event_buffer_[i]))
+                        continue;
+                    else
+                        pixel = event_buffer_[i];
+
+                    dvs_msgs::Event e;
+                    e.x = static_cast<uint16_t>(event_buffer_[i].x);
+                    e.y = static_cast<uint16_t>(event_buffer_[i].y);
+                    e.ts.fromSec(event_buffer_[i].t * 1e-6 - time_offset);
+                    e.polarity = static_cast<uint8_t>(event_buffer_[i].p);
+                    msg.events.push_back(std::move(e));
                 }
 
                 events_pub_.publish(msg);
@@ -88,8 +100,7 @@ void Evk4HdCom::run() {
     });
 
     // 外部触发事件回调
-    camera_.ext_trigger().add_callback([this](const EventExtTrigger *begin,
-                                              const EventExtTrigger *end) {
+    camera_.ext_trigger().add_callback([this](const EventExtTrigger *begin, const EventExtTrigger *end) {
         // 有新触发事件
         if (begin < end) {
             // 由于同步信号频率低(1hz)，因此每次处理只会有一个触发事件
@@ -108,10 +119,9 @@ void Evk4HdCom::run() {
                     return;
 
                 // 计算同步偏移量
-                auto  ins_stamps    = ins_probe_com_->stamps();
+                auto ins_stamps     = ins_probe_com_->stamps();
                 auto &trigger_stamp = stamps_.front();
-                for (auto ins_stamp = ins_stamps.rbegin(); ins_stamp != ins_stamps.rend();
-                     ins_stamp++) {
+                for (auto ins_stamp = ins_stamps.rbegin(); ins_stamp != ins_stamps.rend(); ins_stamp++) {
                     // 搜索本地时间最近的INS-Probe时间戳
                     if (std::fabs(trigger_stamp.first - ins_stamp->first) < sync_thresh_) {
                         time_offset_ = trigger_stamp.second - ins_stamp->second;
