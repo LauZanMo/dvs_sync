@@ -5,7 +5,6 @@
         <param name="config_file" value="$(find dvs_sync)/config/hand_held.yaml"/>
         <remap from="/dvs_sync_node/events" to="/dvs/events" />
         <remap from="/dvs_sync_node/imu" to="/dvs/imu"/>
-        
     </node>
 
 </launch>
