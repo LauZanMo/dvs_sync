@@ -1,0 +1,2 @@
+KERNELS=="1-5.4.1.4:1.0", MODE:="0777", GROUP:="dialout", SYMLINK+="data_serial"
+KERNELS=="1-5.4.1.4:1.1", MODE:="0777", GROUP:="dialout", SYMLINK+="sync_serial"

@@ -1,11 +1,11 @@
 # InsProbe参数
 data_serial:
-    port: "/dev/ttyUSB0"
+    port: "/dev/data_serial"
     baudrate: 115200
     timeout: 1000 # 单位：ms
 
 sync_serial:
-    port: "/dev/ttyUSB1"
+    port: "/dev/sync_serial"
     baudrate: 115200
     timeout: 3000 # 单位：ms
 
