@@ -37,6 +37,8 @@ private:
     double pub_dt_;
     double sync_thresh_;
     bool pub_t_offset_;
+    int down_sample_;
+    int width_, height_;
 
     ros::NodeHandle nh_;
     ros::Publisher events_pub_;

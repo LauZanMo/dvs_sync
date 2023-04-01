@@ -1,6 +1,7 @@
 #include "evk4_hd_com.h"
 
 #include <dvs_msgs/EventArray.h>
+#include <metavision/hal/facilities/i_roi.h>
 #include <metavision/hal/facilities/i_trigger_in.h>
 #include <thread>
 #include <yaml-cpp/yaml.h>
@@ -21,6 +22,7 @@ Evk4HdCom::Evk4HdCom(const std::string &config_file, const InsProbeCom::Ptr &ins
     pub_dt_           = 1.0 / config["pub_rate"].as<double>();
     sync_thresh_      = 0.1 / config["sync_rate"].as<double>(); // 同步阈值设置为同步频率的十分之一
     pub_t_offset_     = config["pub_t_offset"].as<bool>();
+    down_sample_      = config["down_sample"].as<int>();
 
     events_pub_ = nh_.advertise<dvs_msgs::EventArray>("events", 1000);
 }
@@ -45,6 +47,19 @@ void Evk4HdCom::run() {
     ROS_INFO_STREAM(prefix_ << "Camera geometry " << geometry.width() << "x" << geometry.height());
     ROS_INFO_STREAM(prefix_ << "Camera serial number: " << config.serial_number);
     latest_sae_.resize(geometry.width() * geometry.height());
+
+    width_  = geometry.width() / down_sample_;
+    height_ = geometry.height() / down_sample_;
+    // 设置ROI
+    if (down_sample_ > 1) {
+        std::vector<bool> cols_to_enable(width_, false);
+        std::vector<bool> rows_to_enable(height_, false);
+        for (int i = 0; i < geometry.width(); i += down_sample_)
+            cols_to_enable[i] = true;
+        for (int i = 0; i < geometry.height(); i += down_sample_)
+            rows_to_enable[i] = true;
+        camera_.get_device().get_facility<Metavision::I_ROI>()->set_ROIs(cols_to_enable, rows_to_enable);
+    }
 
     // 相机采集
     camera_.start();
@@ -72,8 +87,8 @@ void Evk4HdCom::run() {
                 dvs_msgs::EventArray msg;
                 msg.header.frame_id = camera_label_;
                 msg.header.stamp.fromSec(buffer_start_t_ - time_offset);
-                msg.width  = camera_.geometry().width();
-                msg.height = camera_.geometry().height();
+                msg.width  = width_;
+                msg.height = height_;
 
                 msg.events.reserve(event_buffer_.size());
 
@@ -85,8 +100,8 @@ void Evk4HdCom::run() {
                         pixel = event_buffer_[i];
 
                     dvs_msgs::Event e;
-                    e.x = static_cast<uint16_t>(event_buffer_[i].x);
-                    e.y = static_cast<uint16_t>(event_buffer_[i].y);
+                    e.x = static_cast<uint16_t>(event_buffer_[i].x) / down_sample_;
+                    e.y = static_cast<uint16_t>(event_buffer_[i].y) / down_sample_;
                     e.ts.fromSec(event_buffer_[i].t * 1e-6 - time_offset);
                     e.polarity = static_cast<uint8_t>(event_buffer_[i].p);
                     msg.events.push_back(std::move(e));
