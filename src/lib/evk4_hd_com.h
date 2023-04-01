@@ -38,6 +38,7 @@ private:
     double sync_thresh_;
     bool pub_t_offset_;
     int down_sample_;
+    double down_sample_inv_;
     int width_, height_;
 
     ros::NodeHandle nh_;

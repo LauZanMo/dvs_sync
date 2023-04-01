@@ -48,8 +48,9 @@ void Evk4HdCom::run() {
     ROS_INFO_STREAM(prefix_ << "Camera serial number: " << config.serial_number);
     latest_sae_.resize(geometry.width() * geometry.height());
 
-    width_  = geometry.width() / down_sample_;
-    height_ = geometry.height() / down_sample_;
+    down_sample_inv_ = 1.0 / down_sample_;
+    width_           = geometry.width() / down_sample_;
+    height_          = geometry.height() / down_sample_;
     // 设置ROI
     if (down_sample_ > 1) {
         std::vector<bool> cols_to_enable(width_, false);
@@ -100,8 +101,8 @@ void Evk4HdCom::run() {
                         pixel = event_buffer_[i];
 
                     dvs_msgs::Event e;
-                    e.x = static_cast<uint16_t>(event_buffer_[i].x) / down_sample_;
-                    e.y = static_cast<uint16_t>(event_buffer_[i].y) / down_sample_;
+                    e.x = static_cast<uint16_t>(event_buffer_[i].x) * down_sample_inv_;
+                    e.y = static_cast<uint16_t>(event_buffer_[i].y) * down_sample_inv_;
                     e.ts.fromSec(event_buffer_[i].t * 1e-6 - time_offset);
                     e.polarity = static_cast<uint8_t>(event_buffer_[i].p);
                     msg.events.push_back(std::move(e));
