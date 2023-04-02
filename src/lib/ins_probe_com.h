@@ -1,10 +1,13 @@
 #pragma once
 
+#include "evk4_hd_com.h"
+#include "types.h"
+
 #include <deque>
 #include <memory>
-#include <mutex>
 #include <ros/ros.h>
 #include <serial/serial.h>
+#include <vector>
 #include <yaml-cpp/yaml.h>
 
 namespace dvs_sync {
@@ -27,33 +30,18 @@ struct InsProbeIMU {
 #pragma pack(pop)
 static const uint8_t packet_ID[2] = {0x55, 0xAA};
 
-using StampType = std::pair<double, double>; ///< first: 本地时间, second: 传感器时间
-
 class InsProbeCom {
 public:
-    using mutex_t = std::mutex;
-    using ulock_t = std::unique_lock<mutex_t>;
-
     typedef std::shared_ptr<InsProbeCom> Ptr;
 
-    InsProbeCom(const std::string &config_file);
+    InsProbeCom(const std::string &config_file, Evk4HdCom::Ptr &evk4_hd_com);
     ~InsProbeCom() = default;
 
-    static Ptr create(const std::string &config_file) {
-        return std::make_shared<InsProbeCom>(config_file);
+    static Ptr create(const std::string &config_file, Evk4HdCom::Ptr &evk4_hd_com) {
+        return std::make_shared<InsProbeCom>(config_file, evk4_hd_com);
     }
 
     void run();
-
-    bool stampAvailable() {
-        ulock_t lock(mutex_);
-        return !stamps_.empty();
-    }
-
-    std::deque<StampType> stamps() {
-        ulock_t lock(mutex_);
-        return stamps_;
-    }
 
 private:
     void openSerial(serial::Serial &serial, YAML::Node &serial_config);
@@ -68,8 +56,10 @@ private:
     uint8_t data_counter_{0}, checksum_{0};
     InsProbeIMU imu_data_;
 
+    double sync_rate_;
+    double sync_thresh_;
     std::deque<StampType> stamps_;
-    mutex_t mutex_;
+    Evk4HdCom::Ptr evk4_hd_com_;
 
     std::string prefix_ = "INS Probe: ";
 };

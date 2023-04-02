@@ -2,24 +2,12 @@
 <launch>
 
     <arg name="events_topic" default="/dvs/events"/>
-    <arg name="image_topic" default="/dvs/image_raw"/>
     <arg name="imu_topic" default="/dvs/imu"/>
-
-    <arg name="display_method" default="red-blue"/>
-    <arg name="display_topic" default="dvs_rendering"/>
 
     <node pkg="dvs_sync" type="node" name="dvs_sync_node" respawn="false" output="screen">
         <param name="config_file" value="$(find dvs_sync)/config/hand_held.yaml"/>
         <remap from="/dvs_sync_node/events" to="$(arg events_topic)"/>
         <remap from="/dvs_sync_node/imu" to="$(arg imu_topic)"/>
-    </node>
-
-    <!-- visualization -->
-    <node name="dvs_renderer_node" pkg="dvs_renderer" type="dvs_renderer" respawn="false" output="screen">
-        <param name="display_method" value="$(arg display_method)"/>
-        <remap from="events" to="$(arg events_topic)"/>
-        <remap from="image" to="$(arg image_topic)"/>
-        <remap from="dvs_rendering" to="$(arg display_topic)"/>
     </node>
 
 </launch>

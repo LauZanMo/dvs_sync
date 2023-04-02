@@ -1,27 +1,24 @@
 #include "evk4_hd_com.h"
 
 #include <dvs_msgs/EventArray.h>
+
 #include <metavision/hal/facilities/i_roi.h>
 #include <metavision/hal/facilities/i_trigger_in.h>
+#include <tbb/parallel_for.h>
 #include <thread>
 #include <yaml-cpp/yaml.h>
 
 namespace dvs_sync {
 
-bool Equal(const EventCD &a, const EventCD &b) {
-    return a.t == b.t && a.p == b.p;
-}
-
-Evk4HdCom::Evk4HdCom(const std::string &config_file, const InsProbeCom::Ptr &ins_probe_com)
-    : ins_probe_com_(ins_probe_com)
-    , nh_("~") {
+Evk4HdCom::Evk4HdCom(const std::string &config_file)
+    : nh_("~") {
     // 加载配置文件
     YAML::Node config = YAML::LoadFile(config_file);
     camera_label_     = config["camera_label"].as<std::string>();
     bias_file_        = config["bias_file"].as<std::string>();
+    pub_wrap_cost_    = config["pub_wrap_cost"].as<bool>();
+    use_multithread_  = config["use_multithread"].as<bool>();
     pub_dt_           = 1.0 / config["pub_rate"].as<double>();
-    sync_thresh_      = 0.1 / config["sync_rate"].as<double>(); // 同步阈值设置为同步频率的十分之一
-    pub_t_offset_     = config["pub_t_offset"].as<bool>();
     down_sample_      = config["down_sample"].as<int>();
 
     events_pub_ = nh_.advertise<dvs_msgs::EventArray>("events", 1000);
@@ -46,7 +43,6 @@ void Evk4HdCom::run() {
     auto &geometry                         = camera_.geometry();
     ROS_INFO_STREAM(prefix_ << "Camera geometry " << geometry.width() << "x" << geometry.height());
     ROS_INFO_STREAM(prefix_ << "Camera serial number: " << config.serial_number);
-    latest_sae_.resize(geometry.width() * geometry.height());
 
     down_sample_inv_ = 1.0 / down_sample_;
     width_           = geometry.width() / down_sample_;
@@ -63,6 +59,7 @@ void Evk4HdCom::run() {
     }
 
     // 相机采集
+    stamp_available_ = true;
     camera_.start();
 
     // 普通事件回调
@@ -91,21 +88,35 @@ void Evk4HdCom::run() {
                 msg.width  = width_;
                 msg.height = height_;
 
-                msg.events.reserve(event_buffer_.size());
+                msg.events.resize(event_buffer_.size());
 
-                for (size_t i = 0; i < event_buffer_.size(); i++) {
-                    auto &pixel = latest_sae_[event_buffer_[i].x + event_buffer_[i].y * msg.width];
-                    if (Equal(pixel, event_buffer_[i]))
-                        continue;
-                    else
-                        pixel = event_buffer_[i];
+                ros::Time t0 = ros::Time::now();
 
-                    dvs_msgs::Event e;
-                    e.x = static_cast<uint16_t>(event_buffer_[i].x) * down_sample_inv_;
-                    e.y = static_cast<uint16_t>(event_buffer_[i].y) * down_sample_inv_;
-                    e.ts.fromSec(event_buffer_[i].t * 1e-6 - time_offset);
-                    e.polarity = static_cast<uint8_t>(event_buffer_[i].p);
-                    msg.events.push_back(std::move(e));
+                if (use_multithread_) {
+                    tbb::parallel_for(tbb::blocked_range<size_t>(0, event_buffer_.size()),
+                                      [&](const tbb::blocked_range<size_t> &r) {
+                                          for (size_t i = r.begin(); i != r.end(); i++) {
+                                              auto &e = msg.events[i];
+                                              e.x     = static_cast<uint16_t>(event_buffer_[i].x) * down_sample_inv_;
+                                              e.y     = static_cast<uint16_t>(event_buffer_[i].y) * down_sample_inv_;
+                                              e.ts.fromSec(event_buffer_[i].t * 1e-6 - time_offset);
+                                              e.polarity = static_cast<uint8_t>(event_buffer_[i].p);
+                                          }
+                                      });
+                } else {
+                    for (size_t i = 0; i < event_buffer_.size(); i++) {
+                        auto &e = msg.events[i];
+                        e.x     = static_cast<uint16_t>(event_buffer_[i].x) * down_sample_inv_;
+                        e.y     = static_cast<uint16_t>(event_buffer_[i].y) * down_sample_inv_;
+                        e.ts.fromSec(event_buffer_[i].t * 1e-6 - time_offset);
+                        e.polarity = static_cast<uint8_t>(event_buffer_[i].p);
+                    }
+                }
+
+                ros::Duration dt = ros::Time::now() - t0;
+                if (pub_wrap_cost_){
+                    ROS_INFO_STREAM("pub events cost " << dt.toSec() * 1000 << " ms");
+                    ROS_INFO_STREAM("pub events size " << msg.events.size());
                 }
 
                 events_pub_.publish(msg);
@@ -119,43 +130,12 @@ void Evk4HdCom::run() {
     camera_.ext_trigger().add_callback([this](const EventExtTrigger *begin, const EventExtTrigger *end) {
         // 有新触发事件
         if (begin < end) {
-            // 由于同步信号频率低(1hz)，因此每次处理只会有一个触发事件
             // INS-Probe只在上升沿回传时间戳，因此只处理负极性的触发事件
-            auto back = end - 1;
-            if (back->p == 0) {
-                stamps_.emplace_back(ros::Time::now().toSec(), back->t * 1e-6);
-
-                // 延迟初始化和计算同步偏移量
-                if (stamps_.size() > 2)
-                    stamps_.pop_front();
-                else if (stamps_.size() < 2)
-                    return;
-
-                if (!ins_probe_com_->stampAvailable())
-                    return;
-
-                // 计算同步偏移量
-                auto ins_stamps     = ins_probe_com_->stamps();
-                auto &trigger_stamp = stamps_.front();
-                for (auto ins_stamp = ins_stamps.rbegin(); ins_stamp != ins_stamps.rend(); ins_stamp++) {
-                    // 搜索本地时间最近的INS-Probe时间戳
-                    if (std::fabs(trigger_stamp.first - ins_stamp->first) < sync_thresh_) {
-                        time_offset_ = trigger_stamp.second - ins_stamp->second;
-                        if (pub_t_offset_) {
-                            // clang-format off
-                            ROS_INFO_STREAM("Time offset: " << std::to_string(time_offset_));
-                            ROS_INFO_STREAM("Trigger ROS time: " << std::to_string(trigger_stamp.first));
-                            ROS_INFO_STREAM("INS ROS time: " << std::to_string(ins_stamp->first));
-                            ROS_INFO_STREAM("Trigger stamp: " << std::to_string(trigger_stamp.second));
-                            ROS_INFO_STREAM("INS stamp: " << std::to_string(ins_stamp->second));
-                            // clang-format on
-                        }
-                        break;
-                    }
+            for (auto it = begin; it != end; it++) {
+                if (it->p == 0) {
+                    ulock_t lock(mutex_);
+                    stamps_.emplace_back(ros::Time::now().toSec(), it->t * 1e-6);
                 }
-
-                if (!is_offset_init_)
-                    is_offset_init_ = true;
             }
         }
     });

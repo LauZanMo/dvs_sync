@@ -9,11 +9,12 @@ sync_serial:
     baudrate: 115200
     timeout: 3000 # 单位：ms
 
-sync_rate: 1 # 单位：Hz
+sync_rate: 10 # 单位：Hz
 
 # EVK4 HD参数
 camera_label: "evk4_hd"
 bias_file: "/home/ubuntu/Code/catkin_ws/src/dvs_sync/config/bias/evk4_hd.bias"
 pub_rate: 100.0 # 单位：Hz
-pub_t_offset: false
+pub_wrap_cost: false
+use_multithread: true
 down_sample: 2 # 降采样倍数，为1时不降采样(要能被整除)

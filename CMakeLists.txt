@@ -31,6 +31,10 @@ target_link_libraries(${PROJECT_NAME}
     absl::str_format
 )
 
+# TBB
+find_package(TBB REQUIRED)
+target_link_libraries(${PROJECT_NAME} TBB::tbb)
+
 # boost
 find_package(Boost REQUIRED COMPONENTS filesystem)
 target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})

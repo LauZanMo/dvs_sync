@@ -10,8 +10,9 @@
 
 namespace dvs_sync {
 
-InsProbeCom::InsProbeCom(const std::string &config_file)
-    : nh_("~") {
+InsProbeCom::InsProbeCom(const std::string &config_file, Evk4HdCom::Ptr &evk4_hd_com)
+    : nh_("~")
+    , evk4_hd_com_(evk4_hd_com) {
     // 加载配置文件
     YAML::Node config;
     try {
@@ -29,6 +30,10 @@ InsProbeCom::InsProbeCom(const std::string &config_file)
     openSerial(sync_serial_, serial_config);
 
     imu_pub_ = nh_.advertise<sensor_msgs::Imu>("imu", 1000);
+
+    // 同步频率
+    sync_rate_   = config["sync_rate"].as<double>();
+    sync_thresh_ = 0.01 / sync_rate_; // 同步阈值设置为同步频率的百分之一
 }
 
 void InsProbeCom::run() {
@@ -133,12 +138,54 @@ void InsProbeCom::parseSync(const std::string &data) {
 
     // 解析
     if (v[0] == "$CAM") {
+        // 相机还未启动，不解析数据
+        if (!evk4_hd_com_->stampAvailable())
+            return;
         double stamp;
         absl::SimpleAtod(v[2], &stamp);
-        ulock_t lock(mutex_);
         stamps_.emplace_back(ros::Time::now().toSec(), stamp);
-        while (stamps_.size() > 5)
-            stamps_.pop_front();
+
+        // 未初始化offset时，通过本地时间和相机时间进行同步
+        if (!evk4_hd_com_->isOffsetInit()) {
+            // 等待stamps_中有足够的数据
+            if (stamps_.size() < sync_rate_ * 3) // 3秒
+                return;
+
+            // 取中间值计算offset
+            auto cmp_idx     = stamps_.size() / 2;
+            auto &cmp_stamp  = stamps_[cmp_idx];
+            auto evk4_stamps = evk4_hd_com_->stamps();
+            for (size_t idx = 0; idx < evk4_stamps.size(); idx++) {
+                if (std::abs(evk4_stamps[idx].first - cmp_stamp.first) < sync_thresh_) {
+                    double offset = evk4_stamps[idx].second - cmp_stamp.second;
+                    evk4_hd_com_->updateOffset(offset);
+                    ROS_INFO_STREAM(prefix_ << "EVK4 offset initialized: " << offset);
+
+                    // 两边删除到同步点
+                    evk4_hd_com_->eraseStamps(idx);
+                    for (size_t i = 0; i < cmp_idx; i++)
+                        stamps_.pop_front();
+
+                    break;
+                }
+            }
+        } else {
+            // 初始化offset后，通过序列号进行同步
+            auto min_size = std::min(stamps_.size(), evk4_hd_com_->stamps().size());
+            if (min_size < 2)
+                return;
+
+            double inv    = 1.0 / min_size;
+            double offset = 0;
+            for (size_t i = 0; i < min_size; i++)
+                offset += inv * (evk4_hd_com_->stamps()[i].second - stamps_[i].second);
+            evk4_hd_com_->updateOffset(offset);
+
+            // 删除到同步点-1
+            evk4_hd_com_->eraseStamps(min_size - 1);
+            for (size_t i = 0; i < min_size - 1; i++)
+                stamps_.pop_front();
+        }
     }
 }
 
