@@ -1,11 +1,11 @@
 # InsProbe参数
 data_serial:
-    port: "/dev/data_serial"
+    port: "/dev/ttyUSB0"
     baudrate: 115200
     timeout: 1000 # 单位：ms
 
 sync_serial:
-    port: "/dev/sync_serial"
+    port: "/dev/ttyUSB1"
     baudrate: 115200
     timeout: 3000 # 单位：ms
 
@@ -18,3 +18,7 @@ pub_rate: 100.0 # 单位：Hz
 pub_wrap_cost: false
 use_multithread: true
 down_sample: 2 # 降采样倍数，为1时不降采样(要能被整除)
+
+# 话题参数
+events_topic: "/dvs/events"
+imu_topic: "/dvs/imu"

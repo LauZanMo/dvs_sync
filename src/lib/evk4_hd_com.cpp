@@ -21,7 +21,8 @@ Evk4HdCom::Evk4HdCom(const std::string &config_file)
     pub_dt_           = 1.0 / config["pub_rate"].as<double>();
     down_sample_      = config["down_sample"].as<int>();
 
-    events_pub_ = nh_.advertise<dvs_msgs::EventArray>("events", 1000);
+    auto events_topic = config["events_topic"].as<std::string>();
+    events_pub_       = nh_.advertise<dvs_msgs::EventArray>(events_topic, 1000);
 }
 
 void Evk4HdCom::run() {
@@ -114,7 +115,7 @@ void Evk4HdCom::run() {
                 }
 
                 ros::Duration dt = ros::Time::now() - t0;
-                if (pub_wrap_cost_){
+                if (pub_wrap_cost_) {
                     ROS_INFO_STREAM("pub events cost " << dt.toSec() * 1000 << " ms");
                     ROS_INFO_STREAM("pub events size " << msg.events.size());
                 }

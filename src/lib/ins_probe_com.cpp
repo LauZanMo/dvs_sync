@@ -29,7 +29,8 @@ InsProbeCom::InsProbeCom(const std::string &config_file, Evk4HdCom::Ptr &evk4_hd
     serial_config = config["sync_serial"];
     openSerial(sync_serial_, serial_config);
 
-    imu_pub_ = nh_.advertise<sensor_msgs::Imu>("imu", 1000);
+    auto imu_topic = config["imu_topic"].as<std::string>();
+    imu_pub_       = nh_.advertise<sensor_msgs::Imu>(imu_topic, 1000);
 
     // 同步频率
     sync_rate_   = config["sync_rate"].as<double>();
@@ -60,8 +61,15 @@ void InsProbeCom::run() {
                 if (prev_t == 0) { // 第一帧
                     prev_t = imu_data_.week_second;
                 } else {
-                    double dt_inv = 1.0 / (imu_data_.week_second - prev_t);
-                    prev_t        = imu_data_.week_second;
+                    double dt = imu_data_.week_second - prev_t;
+                    double dt_inv;
+                    if (dt > 0.008 || dt < 0.003) {
+                        // 丢数
+                        dt_inv = 200; // 200Hz
+                        ROS_DEBUG_STREAM("IMU data lost");
+                    } else
+                        dt_inv = 1.0 / dt;
+                    prev_t = imu_data_.week_second;
 
                     // 封装成IMU信息发布
                     imu_msg.header.stamp.fromSec(imu_data_.week_second);

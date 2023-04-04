@@ -1,13 +1,8 @@
 <?xml version="1.0"?>
 <launch>
 
-    <arg name="events_topic" default="/dvs/events"/>
-    <arg name="imu_topic" default="/dvs/imu"/>
-
     <node pkg="dvs_sync" type="node" name="dvs_sync_node" respawn="false" output="screen">
         <param name="config_file" value="$(find dvs_sync)/config/hand_held.yaml"/>
-        <remap from="/dvs_sync_node/events" to="$(arg events_topic)"/>
-        <remap from="/dvs_sync_node/imu" to="$(arg imu_topic)"/>
     </node>
 
 </launch>
