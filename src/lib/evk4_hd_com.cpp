@@ -3,6 +3,7 @@
 #include <dvs_msgs/EventArray.h>
 #include <geometry_msgs/Vector3Stamped.h>
 
+#include <metavision/hal/facilities/i_erc.h>
 #include <metavision/hal/facilities/i_roi.h>
 #include <metavision/hal/facilities/i_trigger_in.h>
 #include <tbb/parallel_for.h>
@@ -14,13 +15,15 @@ namespace dvs_sync {
 Evk4HdCom::Evk4HdCom(const std::string &config_file)
     : nh_("~") {
     // 加载配置文件
-    YAML::Node config = YAML::LoadFile(config_file);
-    camera_label_     = config["camera_label"].as<std::string>();
-    bias_file_        = config["bias_file"].as<std::string>();
-    pub_wrap_cost_    = config["pub_wrap_cost"].as<bool>();
-    use_multithread_  = config["use_multithread"].as<bool>();
-    pub_dt_           = 1.0 / config["pub_rate"].as<double>();
-    down_sample_      = config["down_sample"].as<int>();
+    YAML::Node config          = YAML::LoadFile(config_file);
+    camera_label_              = config["camera_label"].as<std::string>();
+    bias_file_                 = config["bias_file"].as<std::string>();
+    enable_event_rate_control_ = config["enable_event_rate_control"].as<bool>();
+    event_rate_                = config["event_rate"].as<uint32_t>();
+    pub_wrap_cost_             = config["pub_wrap_cost"].as<bool>();
+    use_multithread_           = config["use_multithread"].as<bool>();
+    pub_dt_                    = 1.0 / config["pub_rate"].as<double>();
+    down_sample_               = config["down_sample"].as<int>();
 
     auto events_topic      = config["events_topic"].as<std::string>();
     auto events_size_topic = config["events_size_topic"].as<std::string>();
@@ -41,7 +44,10 @@ void Evk4HdCom::run() {
 
     // 使能外部触发
     camera_.get_device().get_facility<Metavision::I_TriggerIn>()->enable(0);
-
+    if (enable_event_rate_control_) {
+        camera_.get_device().get_facility<Metavision::I_Erc>()->set_cd_event_rate(event_rate_);
+        camera_.get_device().get_facility<Metavision::I_Erc>()->enable(enable_event_rate_control_);
+    }
     // 打印相机信息
     Metavision::CameraConfiguration config = camera_.get_camera_configuration();
     auto &geometry                         = camera_.geometry();
@@ -125,7 +131,7 @@ void Evk4HdCom::run() {
 
                 events_pub_.publish(msg);
                 geometry_msgs::Vector3Stamped events_size_msg;
-                events_size_msg.header = msg.header;
+                events_size_msg.header   = msg.header;
                 events_size_msg.vector.x = msg.events.size();
                 events_size_pub_.publish(events_size_msg);
             }

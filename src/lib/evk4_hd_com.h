@@ -66,6 +66,8 @@ private:
 
     std::string camera_label_;
     std::string bias_file_;
+    bool enable_event_rate_control_;
+    uint32_t event_rate_;
     bool pub_wrap_cost_;
     bool use_multithread_;
     double pub_dt_;
