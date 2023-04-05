@@ -1,6 +1,7 @@
 #include "evk4_hd_com.h"
 
 #include <dvs_msgs/EventArray.h>
+#include <geometry_msgs/Vector3Stamped.h>
 
 #include <metavision/hal/facilities/i_roi.h>
 #include <metavision/hal/facilities/i_trigger_in.h>
@@ -21,8 +22,10 @@ Evk4HdCom::Evk4HdCom(const std::string &config_file)
     pub_dt_           = 1.0 / config["pub_rate"].as<double>();
     down_sample_      = config["down_sample"].as<int>();
 
-    auto events_topic = config["events_topic"].as<std::string>();
-    events_pub_       = nh_.advertise<dvs_msgs::EventArray>(events_topic, 1000);
+    auto events_topic      = config["events_topic"].as<std::string>();
+    auto events_size_topic = config["events_size_topic"].as<std::string>();
+    events_pub_            = nh_.advertise<dvs_msgs::EventArray>(events_topic, 1000);
+    events_size_pub_       = nh_.advertise<geometry_msgs::Vector3Stamped>(events_size_topic, 1000);
 }
 
 void Evk4HdCom::run() {
@@ -121,6 +124,10 @@ void Evk4HdCom::run() {
                 }
 
                 events_pub_.publish(msg);
+                geometry_msgs::Vector3Stamped events_size_msg;
+                events_size_msg.header = msg.header;
+                events_size_msg.vector.x = msg.events.size();
+                events_size_pub_.publish(events_size_msg);
             }
 
             event_buffer_.clear();

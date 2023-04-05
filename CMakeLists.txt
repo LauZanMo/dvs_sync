@@ -50,11 +50,12 @@ find_package(catkin REQUIRED COMPONENTS
     roscpp
     serial
     rosbag
+    geometry_msgs
 )
 catkin_package(
     INCLUDE_DIRS src/lib
     LIBRARIES ${PROJECT_NAME}
-    CATKIN_DEPENDS dvs_msgs sensor_msgs roscpp serial rosbag
+    CATKIN_DEPENDS dvs_msgs sensor_msgs roscpp serial rosbag geometry_msgs
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${catkin_INCLUDE_DIRS})

@@ -22,3 +22,5 @@ down_sample: 2 # 降采样倍数，为1时不降采样(要能被整除)
 # 话题参数
 events_topic: "/dvs/events"
 imu_topic: "/dvs/imu"
+offset_topic: "/dvs/offset"
+events_size_topic: "/dvs/events_size"

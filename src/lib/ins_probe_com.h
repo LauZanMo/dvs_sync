@@ -50,6 +50,7 @@ private:
 
     ros::NodeHandle nh_;
     ros::Publisher imu_pub_;
+    ros::Publisher offset_pub_;
 
     serial::Serial data_serial_, sync_serial_;
 

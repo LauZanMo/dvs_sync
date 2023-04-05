@@ -3,6 +3,7 @@
 #include <absl/strings/numbers.h>
 #include <absl/strings/str_split.h>
 #include <boost/filesystem.hpp>
+#include <geometry_msgs/Vector3Stamped.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
 #include <thread>
@@ -29,12 +30,14 @@ InsProbeCom::InsProbeCom(const std::string &config_file, Evk4HdCom::Ptr &evk4_hd
     serial_config = config["sync_serial"];
     openSerial(sync_serial_, serial_config);
 
-    auto imu_topic = config["imu_topic"].as<std::string>();
-    imu_pub_       = nh_.advertise<sensor_msgs::Imu>(imu_topic, 1000);
+    auto imu_topic    = config["imu_topic"].as<std::string>();
+    auto offset_topic = config["offset_topic"].as<std::string>();
+    imu_pub_          = nh_.advertise<sensor_msgs::Imu>(imu_topic, 1000);
+    offset_pub_       = nh_.advertise<geometry_msgs::Vector3Stamped>(offset_topic, 1000);
 
     // 同步频率
     sync_rate_   = config["sync_rate"].as<double>();
-    sync_thresh_ = 0.01 / sync_rate_; // 同步阈值设置为同步频率的百分之一
+    sync_thresh_ = 0.1 / sync_rate_; // 同步阈值设置为同步频率的十分之一
 }
 
 void InsProbeCom::run() {
@@ -159,8 +162,8 @@ void InsProbeCom::parseSync(const std::string &data) {
             if (stamps_.size() < sync_rate_ * 3) // 3秒
                 return;
 
-            // 取中间值计算offset
-            auto cmp_idx     = stamps_.size() / 2;
+            // 取1秒前的值计算offset
+            auto cmp_idx     = stamps_.size() - sync_rate_;
             auto &cmp_stamp  = stamps_[cmp_idx];
             auto evk4_stamps = evk4_hd_com_->stamps();
             for (size_t idx = 0; idx < evk4_stamps.size(); idx++) {
@@ -188,6 +191,12 @@ void InsProbeCom::parseSync(const std::string &data) {
             for (size_t i = 0; i < min_size; i++)
                 offset += inv * (evk4_hd_com_->stamps()[i].second - stamps_[i].second);
             evk4_hd_com_->updateOffset(offset);
+
+            // 发布offset
+            geometry_msgs::Vector3Stamped offset_msg;
+            offset_msg.header.stamp.fromSec(stamp);
+            offset_msg.vector.x = offset;
+            offset_pub_.publish(offset_msg);
 
             // 删除到同步点-1
             evk4_hd_com_->eraseStamps(min_size - 1);

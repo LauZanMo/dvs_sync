@@ -52,7 +52,7 @@ public:
 
     void updateOffset(const double &offset) {
         is_offset_init_ = true;
-        if (time_offset_ > 0.0 && std::abs(offset - time_offset_) > 0.002)
+        if (time_offset_ > 0.00001 && std::abs(offset - time_offset_) > 0.0001)
             // offset变化过大，不用于更新
             ROS_WARN_STREAM(prefix_ << "Time offset is not stable!");
         else
@@ -75,6 +75,7 @@ private:
 
     ros::NodeHandle nh_;
     ros::Publisher events_pub_;
+    ros::Publisher events_size_pub_;
 
     std::vector<EventCD> event_buffer_;
     double buffer_start_t_, buffer_end_t_;
