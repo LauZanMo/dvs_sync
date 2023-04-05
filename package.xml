@@ -13,13 +13,16 @@
   <build_depend>sensor_msgs</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>serial</build_depend>
+  <build_depend>rosbag</build_depend>
   <build_export_depend>dvs_msgs</build_export_depend>
   <build_export_depend>sensor_msgs</build_export_depend>
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>serial</build_export_depend>
+  <build_export_depend>rosbag</build_export_depend>
   <exec_depend>dvs_msgs</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>roscpp</exec_depend>
   <exec_depend>serial</exec_depend>
+  <exec_depend>rosbag</exec_depend>
 
 </package>

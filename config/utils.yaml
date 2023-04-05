@@ -1,0 +1,6 @@
+raw_bag_file: /home/ubuntu/Dataset/dvs/whu/cali2/cali2.bag
+fix_bag_file: /home/ubuntu/Dataset/dvs/whu/cali2/cali2_fix.bag
+imu_file: /home/ubuntu/Dataset/dvs/whu/cali2/HL_INSPROBE_8_IMU.bin
+
+events_topic: /dvs/events
+imu_topic: /dvs/imu

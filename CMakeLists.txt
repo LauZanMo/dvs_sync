@@ -49,11 +49,12 @@ find_package(catkin REQUIRED COMPONENTS
     sensor_msgs
     roscpp
     serial
+    rosbag
 )
 catkin_package(
     INCLUDE_DIRS src/lib
     LIBRARIES ${PROJECT_NAME}
-    CATKIN_DEPENDS dvs_msgs sensor_msgs roscpp serial
+    CATKIN_DEPENDS dvs_msgs sensor_msgs roscpp serial rosbag
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${catkin_INCLUDE_DIRS})
@@ -64,3 +65,8 @@ add_executable(${PROJECT_NAME}_node src/dvs_sync_node.cpp)
 set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
 target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME})
 add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+# build utils
+add_executable(rosbag_imu_fix utils/rosbag_imu_fix.cpp)
+target_link_libraries(rosbag_imu_fix ${PROJECT_NAME})
+add_dependencies(rosbag_imu_fix ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
