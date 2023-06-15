@@ -56,6 +56,7 @@ void InsProbeCom::run() {
     uint8_t data;
     double prev_t = 0;
     sensor_msgs::Imu imu_msg;
+    double last_dt_inv = 200.0;
     while (ros::ok()) {
         if (data_serial_.waitReadable()) {
             // 解析
@@ -68,10 +69,12 @@ void InsProbeCom::run() {
                     double dt_inv;
                     if (dt > 0.008 || dt < 0.003) {
                         // 丢数
-                        dt_inv = 200; // 200Hz
+                        dt_inv = last_dt_inv; // 200Hz
                         ROS_DEBUG_STREAM("IMU data lost");
-                    } else
+                    } else {
                         dt_inv = 1.0 / dt;
+                        last_dt_inv = dt_inv;
+                    }
                     prev_t = imu_data_.week_second;
 
                     // 封装成IMU信息发布
@@ -132,7 +135,7 @@ bool InsProbeCom::parseData(const uint8_t &data) {
         ((uint8_t *) &imu_data_)[data_counter_ - 2] = data;
         checksum_ += data;
         data_counter_++;
-    } else { // 接收校验和（这里我只用了第一个校验位）
+    } else {                   // 接收校验和（这里我只用了第一个校验位）
         data_counter_ = 0;
         if (checksum_ == data) // 检验成功
             return true;

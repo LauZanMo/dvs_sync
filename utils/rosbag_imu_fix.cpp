@@ -76,9 +76,6 @@ int main(int argc, char *argv[]) {
                     if (dt > 0.008) {
                         ROS_WARN_STREAM(absl::StrFormat("Lost imu from %0.3lf with dt %0.3lf", weeksec, dt));
                         fixImuLost(last_imu_stamp, weeksec, imu_topic, fix_bag, imufp);
-                        raw_last_imu_stamp = imu_msg->header.stamp.toSec();
-                        last_imu_stamp     = weeksec;
-                        continue;
                     }
                 }
                 raw_last_imu_stamp = imu_msg->header.stamp.toSec();
