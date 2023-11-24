@@ -62,7 +62,7 @@ void Evk4HdCom::run() {
         std::vector<Metavision::DeviceRoi> rois;
         for (int i = 0; i < geometry.width(); i += down_sample_) {
             for (int j = 0; j < geometry.height(); j += down_sample_) {
-                rois.emplace_back(i, j, 1, 1);
+                rois.emplace_back(i, j, 2, 2);
             }
         }
         // 不要用输入vector<bool>的set_ROIs函数，vector<bool>在赋值时会出现异常
