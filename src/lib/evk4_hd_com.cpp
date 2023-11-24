@@ -59,13 +59,14 @@ void Evk4HdCom::run() {
     height_          = geometry.height() / down_sample_;
     // 设置ROI
     if (down_sample_ > 1) {
-        std::vector<bool> cols_to_enable(width_, false);
-        std::vector<bool> rows_to_enable(height_, false);
-        for (int i = 0; i < geometry.width(); i += down_sample_)
-            cols_to_enable[i] = true;
-        for (int i = 0; i < geometry.height(); i += down_sample_)
-            rows_to_enable[i] = true;
-        camera_.get_device().get_facility<Metavision::I_ROI>()->set_ROIs(cols_to_enable, rows_to_enable);
+        std::vector<Metavision::DeviceRoi> rois;
+        for (int i = 0; i < geometry.width(); i += down_sample_) {
+            for (int j = 0; j < geometry.height(); j += down_sample_) {
+                rois.emplace_back(i, j, 1, 1);
+            }
+        }
+        // 不要用输入vector<bool>的set_ROIs函数，vector<bool>在赋值时会出现异常
+        camera_.get_device().get_facility<Metavision::I_ROI>()->set_ROIs(rois);
     }
 
     // 相机采集
@@ -154,12 +155,7 @@ void Evk4HdCom::run() {
         }
     });
 
-    // 主循环
-    ros::Rate loop_rate(5);
-    while (ros::ok()) {
-        loop_rate.sleep();
-    }
-
+    ros::spin();
     camera_.stop();
 }
 
