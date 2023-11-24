@@ -70,7 +70,7 @@ void InsProbeCom::run() {
                     if (dt > 0.008 || dt < 0.003) {
                         // 丢数
                         dt_inv = last_dt_inv; // 200Hz
-                        ROS_DEBUG_STREAM("IMU data lost");
+                        ROS_WARN_STREAM("IMU data lost");
                     } else {
                         dt_inv = 1.0 / dt;
                         last_dt_inv = dt_inv;
@@ -135,10 +135,12 @@ bool InsProbeCom::parseData(const uint8_t &data) {
         ((uint8_t *) &imu_data_)[data_counter_ - 2] = data;
         checksum_ += data;
         data_counter_++;
-    } else {                   // 接收校验和（这里我只用了第一个校验位）
-        data_counter_ = 0;
+    } else if (data_counter_ < 45) { // 接收校验和（这里我只用了第一个校验位）
+        data_counter_++;
         if (checksum_ == data) // 检验成功
             return true;
+    } else { // 忽略第二个校验位
+        data_counter_ = 0;
     }
     return false;
 }
