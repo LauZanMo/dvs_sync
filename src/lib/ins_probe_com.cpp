@@ -188,7 +188,7 @@ void InsProbeCom::parseSync(const std::string &data) {
         } else {
             // 初始化offset后，通过序列号进行同步
             auto min_size = std::min(stamps_.size(), evk4_hd_com_->stamps().size());
-            if (min_size < 2)
+            if (min_size < sync_rate_) // 1秒
                 return;
 
             double inv    = 1.0 / min_size;
