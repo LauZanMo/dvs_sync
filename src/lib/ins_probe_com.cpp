@@ -57,6 +57,7 @@ void InsProbeCom::run() {
     double prev_t = 0;
     sensor_msgs::Imu imu_msg;
     double last_dt_inv = 200.0;
+    bool is_imu_published = false;
     while (ros::ok()) {
         if (data_serial_.waitReadable()) {
             // 解析
@@ -87,6 +88,11 @@ void InsProbeCom::run() {
                     imu_msg.linear_acceleration.y = imu_data_.acc_y * dt_inv;
                     imu_msg.linear_acceleration.z = imu_data_.acc_z * dt_inv;
                     imu_pub_.publish(imu_msg);
+
+                    if (!is_imu_published) {
+                        ROS_INFO_STREAM("IMU data published");
+                        is_imu_published = true;
+                    }
                 }
             }
         }
