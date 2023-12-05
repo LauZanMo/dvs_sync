@@ -19,7 +19,7 @@ event_rate: 10000000 # 事件速率 单位：Ev/s
 pub_rate: 100.0 # 事件发布频率 单位：Hz
 pub_wrap_cost: false # 是否发布包装时间
 use_multithread: true # 是否使用多线程包装事件
-down_sample: 4 # 降采样倍数，为1时不降采样(要能被整除)
+down_sample: 1 # 降采样倍数，为1时不降采样(要能被整除)
 
 # 话题参数
 events_topic: "/dvs/events"
