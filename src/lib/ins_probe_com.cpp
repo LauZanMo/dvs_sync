@@ -90,7 +90,7 @@ void InsProbeCom::run() {
                     imu_pub_.publish(imu_msg);
 
                     if (!is_imu_published) {
-                        ROS_INFO_STREAM("IMU data published");
+                        ROS_INFO_STREAM(prefix_ << "IMU data published");
                         is_imu_published = true;
                     }
                 }
